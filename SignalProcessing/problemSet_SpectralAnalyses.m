@@ -63,3 +63,34 @@ for noisei=1:2
         title('FFT with Lots of noise')
     end
 end
+
+%% 3. Compute the power spectrum of data from electrode 7 in the laminar V1 dât.
+
+% load the LFP data
+load v1_laminar.mat
+pnts = length(timevec);
+% pick which channel
+chan2use = 7;
+
+% FFT of all trials individually
+powspectSeparate = fft(squeeze(csd(chan2use,:,:)),[],1)/pnts;
+% Average the single-trial spectra together
+powspectSeparate = mean(2*abs(powspectSeparate),1);
+
+% now average first, then take the FFT of the trial average
+powspectAverage = 2 * abs(fft(mean(csd(chan2use,:,:),3))/pnts);
+
+% frequencies in Hz
+hz = linspace(0,srate/2,floor(pnts/2)+1);
+
+% plot
+figure(4), clf 
+subplot(211)
+plot(hz,powspectSeparate(1:length(hz)),'linew',4)
+set(gca,'xlim',[0 100])
+xlabel('Frequency (Hz)'), ylabel('Amplitude')
+
+subplot(212)
+plot(hz,powspectAverage(1:length(hz)),'LineWidth',4)
+xlabel('Frequency(Hz)'), ylabel('Amplitude')
+set(gca,'xlim',[0 100])
