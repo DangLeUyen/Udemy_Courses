@@ -94,3 +94,112 @@ subplot(212)
 plot(hz,powspectAverage(1:length(hz)),'LineWidth',4)
 xlabel('Frequency(Hz)'), ylabel('Amplitude')
 set(gca,'xlim',[0 100])
+
+%% 4. Fourier transform ffrom scratch!
+
+N = 20;
+signal = randn(1,N);
+fTime = (0:N-1)/N;
+
+% initialize Fourier output matrix
+fourierCoefs = zeros(size(signal));
+
+for fi=1:N
+    fourierSine = exp(-1i*2*pi*(fi-1)*fTime);
+    fourierCoefs(fi) = dot(signal,fourierSine);
+end
+
+fourierCoefs = fourierCoefs/N;
+
+figure(5), clf
+subplot(211)
+plot(signal)
+title('Data')
+
+subplot(212)
+plot(abs(fourierCoefs)*2,'*-')
+xlabel('Frequency (a.u.)')
+
+fourierCoefsF = fft(signal)/N;
+
+hold on
+plot(abs(fourierCoefsF)*2,'ro')
+legend({'Manual FT';'FFT'})
+
+%% 5. Zero-padding and interpolation
+
+load uANTS_timefreq_MATLABfiles/v1_laminar.mat
+chan2use = 7;
+pnts = length(timevec);
+tidx(1) = dsearchn(timevec',0);
+tidx(2) = dsearchn(timevec',.5);
+
+nfft = 2 * (diff(tidx)+1);
+
+powspect = mean(2*abs(fft(squeeze(csd(chan2use,tidx(1):tidx(2),:)),nfft,1)/pnts).^2,2);
+hz = linspace(0, srate/2, floor(nfft/2)+1);
+
+figure(7), clf
+plot(hz, powspect(1:length(hz)),'k-o')
+set(gca, 'xlim', [0 120])
+
+%% 6. Poor man's filter via frequency-domain manipulations.
+
+srate=1234;
+npnts = srate*3;
+time = (0:npnts-1)/srate;
+
+% the key parameter of pink noise is the exponential decay
+ed = 50;
+as = rand(1,npnts).* exp(-(0:npnts-1)/ed);
+fc = as.* exp(1i*2*pi*rand(size(as)));
+
+signal = real(ifft(fc)) * npnts;
+
+% add 50 Hz line noise
+signal = signal + sin(2*pi*50*time);
+
+% compute its spectrum
+hz =linspace(0,srate/2, floor(npnts/2)+1);
+signal1X = fft(signal);
+
+figure(8), clf
+subplot(211)
+plot(time,signal, 'k')
+xlabel('TIme'), ylabel('Activity')
+
+subplot(212)
+plot(hz, (2*abs(signal1X(1:length(hz)))/npnts).^2,'k')
+set(gca,'xlim',[0 80])
+xlabel('Frequency'), ylabel('Amplitude')
+
+% zero-out the 50 Hz component
+% find the index into the frequencies vector at 50 hz
+hz50ix = dsearchn(hz',50);
+
+% create a copy of the Fourier transform
+signal1Xf = signal1X;
+
+%sero-out the 50Hz component
+signal1Xf(hz50ix) = 0;
+signal1Xf(end-hz50ix+2) = 0;
+
+% take the ifft
+signalff = real(ifft(signal1Xf));
+
+signal1Xf = fft(signalff);
+
+% plot
+figure(9), clf
+subplot(211), hold on
+plot(time,signal, 'k')
+plot(time,signalff,'r')
+xlabel('TIme'), ylabel('Activity')
+
+subplot(212), hold on
+plot(hz, (2*abs(signal1X(1:length(hz)))/npnts),'k')
+plot(hz, (2*abs(signal1Xf(1:length(hz)))/npnts),'ro-')
+set(gca,'xlim',[0 80])
+xlabel('Frequency'), ylabel('Amplitude')
+
+
